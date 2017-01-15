@@ -11,9 +11,9 @@
 % For more information about CRF-RNN please vist the project website http://crfasrnn.torr.vision.
 %
 
-caffe_path = '../caffe/';
+caffe_path = '../caffe-crfrnn/';
 
-model_def_file = 'TVG_CRFRNN_new_deploy.prototxt';
+model_def_file = 'TVG_CRFRNN_COCO_VOC.prototxt';
 model_file = 'TVG_CRFRNN_COCO_VOC.caffemodel';
 
 if exist(model_file, 'file') ~= 2
@@ -21,15 +21,24 @@ if exist(model_file, 'file') ~= 2
 end
 
 use_gpu = 1; % Set this to 0 if you don't have a GPU.
-gpu_id = 0;% which gpu device id you are using?
 
-addpath(fullfile(caffe_path, 'matlab'));
+addpath(fullfile(caffe_path, 'matlab/caffe'));
 
-caffe.reset_all();
+caffe('reset');
+caffe('set_device', 0); % Change here if you have a powerful GPU in different device, nvidia-smi will help you check the device information.
 
-net = tvg_matcaffe_init(use_gpu, gpu_id, model_def_file, model_file);
+tvg_matcaffe_init(use_gpu, model_def_file, model_file);
 
-im = imread('input.jpg');
+dpath = '/home/yfeng23/lab/dataset/pose/DatasetB/';
+vids = dir([dpath 'videos/*.avi']);
+for i = 1:length(vids)
+    if ~isempty(strfind(vids(i).name, 'bkgrd'))
+        continue
+    end
+    vid = VideoReader([dpath 'videos/' vids(i).name]);
+    for j = 1:vid.NumberOfFrames
+        im = read(vid, j);
+%im = imread('images/out080.png');
 
 [h, w, d] = size(im);
 
@@ -44,7 +53,7 @@ end
 prepared_im = tvg_prepare_image_fixed(im);
 
 inputData = {prepared_im};
-scores = net.forward(inputData);    
+scores = caffe('forward', inputData);    
 
 Q = scores{1};        
         
@@ -53,4 +62,8 @@ pred = pred';
 pred = pred(1:h, 1:w);
 
 load map.mat
-imwrite(pred, map, 'output.png', 'png');    
+%imwrite(pred, map, 'output.png', 'png');    
+imshow(pred, map)
+drawnow
+    end
+end
